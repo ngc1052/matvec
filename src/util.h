@@ -6,6 +6,7 @@
 #include <vector>
 #include <fstream>
 
+
 void printPlatformInfo(const cl::Platform& platform)
 {
     std::cout 
@@ -26,15 +27,17 @@ auto get_duration(cl::Event& ev)
     return std::chrono::duration_cast<Dur>(std::chrono::nanoseconds{ ev.getProfilingInfo<To>() - ev.getProfilingInfo<From>() });
 }
 
-void initializeOpenCL(cl::Context& context, cl::CommandQueue& queue, cl::Program& program)
+void initializeOpenCL(cl::Context& context, cl::Device& device, cl::CommandQueue& queue, cl::Program& program)
 {
     std::vector<cl::Platform> platforms;
     cl::Platform::get(&platforms);
 
+#ifdef PRINT_HARDWARE_INFO
     std::cout << "Platforms:" << std::endl;
     for (const auto &platform : platforms)
         printPlatformInfo(platform);
     std::cout << std::endl;
+#endif
 
     auto platform = platforms[0];
 
@@ -43,12 +46,14 @@ void initializeOpenCL(cl::Context& context, cl::CommandQueue& queue, cl::Program
     if (devices.empty())
         throw std::runtime_error("No GPU found! Terminating...");
 
+#ifdef PRINT_HARDWARE_INFO
     std::cout << "Devices:" << std::endl;
     for (const auto &device : devices)
         printDeviceInfo(device);
     std::cout << std::endl;
+#endif
 
-    cl::Device device = devices[0];
+    device = devices[0];
 
     std::vector<cl_context_properties> props{
         CL_CONTEXT_PLATFORM,

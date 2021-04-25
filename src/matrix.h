@@ -1,36 +1,36 @@
 #pragma once
 #include <stddef.h>
+#include <random>
+#include <algorithm>
 
 class Matrix
 {
     public:
-        Matrix(size_t size) : m_size(size)
+        Matrix(size_t size)
         {
-            m_elements = new float[m_size * m_size];
+            m_elements.resize(size*size);
 
-            // Identity matrix
-            for(size_t row = 0; row < m_size; row++)
+            auto prng = [engine = std::default_random_engine{},
+                        distribution = std::uniform_real_distribution<cl_float>{ -1.0, 1.0 }]() mutable { return distribution(engine); };
+
+            std::generate_n(m_elements.begin(), m_elements.size(), prng);
+        }
+
+        void actsOnVector(const std::vector<cl_float>& inVector, std::vector<cl_float>& outVector)
+        {
+            size_t size = sqrt(m_elements.size());
+            for(size_t row = 0; row < size; row++)
             {
-                for(size_t column = 0; column < m_size; column++)
-                {
-                    if(row == column)
-                        m_elements[row*m_size + column] = 1.0;
-                    else
-                        m_elements[row*m_size + column] = 0.0;
-                }
+                cl_float result = 0.0f;
+                for(size_t column = 0; column < size; column++)
+                    result += m_elements[row*size + column] * inVector[column];
+                outVector[row] = result;
             }
         }
 
-        float* getElements() const { return m_elements; }
-        size_t getSize() const { return m_size; }
-
-        ~Matrix()
-        {
-            delete[] m_elements;
-        }
+        std::vector<cl_float>& getElements() { return m_elements; }
 
     private:
-        size_t m_size;
-        float* m_elements;
+        std::vector<cl_float> m_elements;
 
 };
