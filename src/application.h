@@ -9,7 +9,7 @@
 class Application
 {
 public:
-    Application() = default;
+    Application(bool printProfileInfo = false) : printProfileInfo(printProfileInfo) {}
 
     void run_v1(std::vector<std::string>& args);
     void run_v2(std::vector<std::string>& args);
@@ -30,4 +30,6 @@ public:
         cl::Device       device;
 
         std::vector<cl_float> inVector, outVector, referenceVector;
+
+        bool printProfileInfo;
 };

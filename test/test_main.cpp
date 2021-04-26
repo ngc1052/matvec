@@ -21,7 +21,7 @@ TEST_CASE("Match with reference algorithm for sizes: 2**n, n = 2, 3, ..., 10", "
     }
 }
 
-TEST_CASE("numRowPart = 1, identical to v1", "[matvec v2]") 
+TEST_CASE("rowBlockSize = 1, identical to v1", "[matvec v2]") 
 {
     std::vector<int> powers = {2, 3, 4, 5, 6, 7, 8, 9, 10};
     std::vector<std::string> args(4);
@@ -38,7 +38,7 @@ TEST_CASE("numRowPart = 1, identical to v1", "[matvec v2]")
     }
 }
 
-TEST_CASE("Different numRowParts and dimensions", "[matvec v2]") 
+TEST_CASE("Different rowBlockSize and dimensions", "[matvec v2]") 
 {
     std::vector<int> powers = {2, 3, 4, 5, 6};
     std::vector<std::string> args(4);
@@ -49,11 +49,11 @@ TEST_CASE("Different numRowParts and dimensions", "[matvec v2]")
         for(auto m : powers)
         {
             const int dim = pow(2, n);
-            const int numRowParts = pow(2, m);
-            if(numRowParts <= dim)
+            const int rowBlockSize = pow(2, m);
+            if(rowBlockSize <= dim)
             {
                 args[2] = std::to_string(dim);
-                args[3] = std::to_string(numRowParts);
+                args[3] = std::to_string(rowBlockSize);
                 Application app;
                 app.run_v2(args);
                 REQUIRE(app.matchOutAndReferenceVectors() == true);
@@ -68,21 +68,17 @@ TEST_CASE("Different dimensions and block sizes", "[matvec v3]")
     std::vector<std::string> args(5);
     args[0] = "";
     args[1] = "3"; // Method 3
-    args[2] = "3"; // Dimension
-    args[3] = "1"; // rowBlockSize
-    args[4] = "1"; // columnBlockSize
-    for(auto n : powers)
+    for(auto a : powers)
     {
-        for(auto m : powers)
+        for(auto b : powers)
         {
-            for(auto p : powers)
+            for(auto c : powers)
             {
-                const int dim = pow(2, n);
-                const int rowBlockSize = pow(2, m);
-                const int columnBlockSize = pow(2, p);
+                const int dim = pow(2, a);
+                const int rowBlockSize = pow(2, b);
+                const int columnBlockSize = pow(2, c);
                 if (rowBlockSize <= dim && columnBlockSize <= dim && rowBlockSize*columnBlockSize < 256)
                 {
-                    std::cout << dim << " " << rowBlockSize << " " << columnBlockSize << std::endl;
                     args[2] = std::to_string(dim);
                     args[3] = std::to_string(rowBlockSize);
                     args[4] = std::to_string(columnBlockSize);

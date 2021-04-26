@@ -9,13 +9,17 @@ int main(int argc, char* args[])
     {
         if(argc < 3)
             throw std::invalid_argument("At least 2 arguments needed: {method} {dimension}");
+
+        bool printProfileInfo = false;
+        if(std::string(args[argc-1]) == "--profile")
+            printProfileInfo = true;
         
         std::vector<std::string> argsVector(argc);
         for(int i = 0; i < argc; i++)
             argsVector[i] = std::string(args[i]);
 
         int choice = atoi(args[1]);
-        Application app;
+        Application app(printProfileInfo);
         switch(choice)
         {
             case 1:
@@ -27,7 +31,7 @@ int main(int argc, char* args[])
             case 3:
                 app.run_v3(argsVector);
                 break;
-            default:;
+            default: throw std::invalid_argument("Unknown method!");
         }
         app.matchOutAndReferenceVectors();
     }

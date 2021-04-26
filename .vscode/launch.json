@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/matvec",
-            "args": ["3", "10", "2", "5"],
+            "args": ["3", "10", "2", "5", "--profile"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

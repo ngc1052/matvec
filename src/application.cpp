@@ -10,7 +10,6 @@
 void Application::run_v1(std::vector<std::string>& args)
 {
     initializeOpenCL(context, device, queue, program);
-    auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer>(program, "matvec_v1");
 
     size_t dim = atoi(args[2].c_str());
 
@@ -22,12 +21,16 @@ void Application::run_v1(std::vector<std::string>& args)
     cl::Buffer bufferOut(context, outVector.begin(),   outVector.end(),   false /* readOnly */);
     cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true);
 
-    auto numWorkItems     = cl::NDRange{dim};
-    auto groupSize        = cl::NDRange{1};
-    auto kernelParameters = cl::EnqueueArgs(queue, numWorkItems, groupSize);
+    auto globalSize       = cl::NDRange{dim};
+    auto localSize        = cl::NDRange{1};
+    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, localSize);
+
+    auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer>(program, "matvec_v1");
     cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut));
     kernel_event.wait();
-    std::cout << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << std::endl;
+
+    if(printProfileInfo)
+        std::cout << "Execution took: " << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << " us" << std::endl;
 
     cl::copy(queue, bufferOut, outVector.begin(), outVector.end());
 
@@ -37,16 +40,15 @@ void Application::run_v1(std::vector<std::string>& args)
 void Application::run_v2(std::vector<std::string>& args)
 {
     initializeOpenCL(context, device, queue, program);
-    auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v2");
 
     if(args.size() < 4)
-        throw std::invalid_argument("Method 2 requires 3 arguments: {method} {dimension} {numRowParts}");
+        throw std::invalid_argument("Method 2 requires 3 arguments: {method} {dimension} {rowBlockSize}");
 
     size_t dim = atoi(args[2].c_str());
-    size_t numRowParts = atoi(args[3].c_str());
+    size_t rowBlockSize = atoi(args[3].c_str());
 
-    if(numRowParts > dim || dim <= 0 || numRowParts <= 0 || dim % numRowParts != 0)
-        throw std::invalid_argument("Invalid dimension or numRowParts given to method 2. dim: " + std::to_string(dim) + ", numRowParts: " + std::to_string(numRowParts));
+    if(rowBlockSize > dim || dim <= 0 || rowBlockSize <= 0 || dim % rowBlockSize != 0)
+        throw std::invalid_argument("Invalid dimension or rowBlockSize given to method 2. dim: " + std::to_string(dim) + ", rowBlockSize: " + std::to_string(rowBlockSize));
 
     Matrix mat(dim);
     initializeVectors(dim);
@@ -55,14 +57,18 @@ void Application::run_v2(std::vector<std::string>& args)
     cl::Buffer bufferIn (context, inVector.begin(),    inVector.end(),    true  /* readOnly */);
     cl::Buffer bufferOut(context, outVector.begin(),   outVector.end(),   false /* readOnly */);
     cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true);
-    auto rowPart = cl::Local((numRowParts+1)*sizeof(float));
+    auto workArray = cl::Local((rowBlockSize+1)*sizeof(float));
 
-    auto numWorkItems     = cl::NDRange{dim*numRowParts};
-    auto groupSize        = cl::NDRange{numRowParts};
-    auto kernelParameters = cl::EnqueueArgs(queue, numWorkItems, groupSize);
-    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, rowPart));
+    auto globalSize       = cl::NDRange{dim*rowBlockSize};
+    auto localSize        = cl::NDRange{rowBlockSize};
+    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, localSize);
+
+    auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v2");
+    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, workArray));
     kernel_event.wait();
-    std::cout << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << std::endl;
+
+    if(printProfileInfo)
+        std::cout << "Execution took: " << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << " us" << std::endl;
 
     cl::copy(queue, bufferOut, outVector.begin(), outVector.end());
 
@@ -89,21 +95,21 @@ void Application::run_v3(std::vector<std::string>& args)
     initializeVectors(dim);
 
     auto matElements = mat.getElements();
-    cl::Buffer bufferIn (context, inVector.begin(),    inVector.end(),    true  /* readOnly */);
-    cl::Buffer bufferOut(context, outVector.begin(),   outVector.end(),   false /* readOnly */);
-    cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true);
-    auto workArray = cl::Local((rowBlockSize * (columnBlockSize + 1))*sizeof(float));
+    cl::Buffer bufferIn (context, inVector.begin(),    inVector.end(),    true );
+    cl::Buffer bufferOut(context, outVector.begin(),   outVector.end(),   false);
+    cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true );
+    auto workArray = cl::Local(rowBlockSize * columnBlockSize * sizeof(float));
 
-    //int columnPerWorkItem = dim / columnBlockSize;
-    auto numWorkItems     = cl::NDRange(dim, columnBlockSize);
-    auto groupSize        = cl::NDRange(rowBlockSize, columnBlockSize);
-    auto kernelParameters = cl::EnqueueArgs(queue, numWorkItems, groupSize);
+    auto globalSize       = cl::NDRange(dim, columnBlockSize);
+    auto localSize        = cl::NDRange(rowBlockSize, columnBlockSize);
+    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, localSize);
 
     auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v3");
     cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, workArray));
     kernel_event.wait();
 
-    std::cout << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << std::endl;
+    if(printProfileInfo)
+        std::cout << "Execution took: " << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << " us" << std::endl;
 
     cl::copy(queue, bufferOut, outVector.begin(), outVector.end());
     mat.actsOnVector(inVector, referenceVector);
