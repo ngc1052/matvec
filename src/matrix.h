@@ -33,4 +33,18 @@ class Matrix
     private:
         std::vector<cl_float> m_elements;
 
+        void initializeAsIdentity(const size_t size)
+        {
+            for(int i = 0; i < size; i++)
+            {
+                for(int j = 0; j < size; j++)
+                {
+                    if(i == j)
+                        m_elements[i*size+j] = 1.0f;
+                    else
+                        m_elements[i*size+j] = 0.0f;
+                }
+            }
+        }
+
 };

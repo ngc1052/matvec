@@ -106,15 +106,7 @@ void Application::run_v3(std::vector<std::string>& args)
     std::cout << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << std::endl;
 
     cl::copy(queue, bufferOut, outVector.begin(), outVector.end());
-    std::cout << std::endl;
-    for(auto n : outVector)
-        std::cout << n << std::endl;
-
     mat.actsOnVector(inVector, referenceVector);
-
-    std::cout << std::endl;
-    for(auto n : referenceVector)
-        std::cout << n << std::endl;
 }
 
 bool Application::matchOutAndReferenceVectors() const

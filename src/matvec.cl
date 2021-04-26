@@ -77,12 +77,14 @@ __kernel void matvec_v3(
 
     workArray[localID[ROW] * workArraySize[COL] + localID[COL]] = result;
     barrier(CLK_LOCAL_MEM_FENCE);
+
     if(localID[COL] == 0)
     {
-        int workArraySumIndex = localID[ROW]*workArraySize[COL] + workArraySize[ROW];
+        int workArraySumIndex = localID[ROW]*workArraySize[COL] + workArraySize[COL] - 1;
         workArray[workArraySumIndex] = 0.0f;
         for(int localColumn = 0; localColumn < groupSize[COL]; localColumn++)
             workArray[workArraySumIndex] += workArray[localID[ROW]*workArraySize[COL] + localColumn];
+
         outVector[row] = workArray[workArraySumIndex];
     }
 }
