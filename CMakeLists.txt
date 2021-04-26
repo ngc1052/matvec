@@ -3,13 +3,25 @@ Project(matvec)
 
 find_package(OpenCL)
 find_package(Threads)
+find_package(Catch2 REQUIRED)
 
 add_executable(${PROJECT_NAME} src/main.cpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC src)
-target_sources(${PROJECT_NAME} PRIVATE
+add_library(main)
+
+target_include_directories(main PUBLIC src)
+target_include_directories(main PUBLIC ext)
+target_sources(main PRIVATE
+    src/application.h
+    src/application.cpp
+
     src/util.h
+    src/util.cpp
     src/matrix.h
-    src/main.cpp
 )
-target_link_libraries(${PROJECT_NAME} OpenCL::OpenCL Threads::Threads)
+target_link_libraries(main OpenCL::OpenCL Threads::Threads)
+target_link_libraries(${PROJECT_NAME} main)
+
+add_executable(tests test/test_main.cpp)
+target_include_directories(tests PUBLIC src)
+target_link_libraries(tests PRIVATE Catch2Main Catch2::Catch2 main)
