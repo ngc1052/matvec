@@ -5,10 +5,10 @@ kernel void matvec_v1(global const float* mat,
                       global       float* outVector) 
 {
     const int row = get_global_id(0);
-    float result = 0.0;
+    float sum = 0.0f;
     for(int column = 0; column < size; column++)
-        result += mat[row * size + column] * inVector[column];
-    outVector[row] = result;
+        sum += mat[row * size + column] * inVector[column];
+    outVector[row] = sum;
 }
 
 // Multiple work-items per row, they form a work-group
@@ -25,11 +25,11 @@ kernel void matvec_v2(global const float* mat,
     const int firstColumn = localID * itemRowSize;     // first column of mat to process
     const int lastColumn  = firstColumn + itemRowSize; // last column of mat to process
 
-    float result = 0.0f;
+    float sum = 0.0f;
     for (int column = firstColumn; column < lastColumn; column++)
-        result += mat[row * size + column] * inVector[column];
+        sum += mat[row * size + column] * inVector[column];
 
-    workArray[localID] = result;
+    workArray[localID] = sum;
     barrier(CLK_LOCAL_MEM_FENCE);
     if(localID == 0) 
     {
@@ -62,21 +62,22 @@ kernel void matvec_v3(global const float* mat,
     const int  lastColumn   = firstColumn + itemRowSize;
 
     // Calculatind the dot product for a part of the rows
-    float result = 0.0f;
+    float sum = 0.0f;
     for(int column = firstColumn; column < lastColumn; column++)
-        result += mat[row * size + column] * inVector[column];
+        sum += mat[row * size + column] * inVector[column];
 
-    // Copying the result into the workArray
-    workArray[localID[ROW] * groupSize[COL] + localID[COL]] = result;
+    // Copying the sum into the workArray
+    workArray[localID[ROW] * groupSize[COL] + localID[COL]] = sum;
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // First item in the group sums up the elements in workArray and copies the result to outVector
+    // First item in the group sums up the elements in workArray and copies the sum to outVector
     if(localID[COL] == 0) 
     {
         const int workArraySumIndex = localID[ROW] * groupSize[COL]; // First column
+        sum = workArray[workArraySumIndex];
         for(int localColumn = 1; localColumn < groupSize[COL]; localColumn++)
-            workArray[workArraySumIndex] += workArray[workArraySumIndex + localColumn];
+            sum += workArray[workArraySumIndex + localColumn];
 
-        outVector[row] = workArray[workArraySumIndex];
+        outVector[row] = sum;
     }
 }

@@ -1,33 +1,60 @@
 import os, sys
 import matplotlib.pyplot as plt
 
-dims = [2**n for n in range(4, 12)]
-numRowParts = [2**n for n in range(1, 9)]
+dim = 256
+repeat_count = 10
 
-max_times = []
-min_times = []
-avg_times = []
-with open(sys.argv[1] + '.out', 'w') as f:
-    #f.write("dim;min_time[us];max_time[us];avg_time[us]\n")
-    f.write("numRowParts;min_time[us];max_time[us];avg_time[us]\n")
-    dim = 1024
-    for n in numRowParts:
-        print(n)
-        times = []
-        for i in range(10):
-            times.append(int(os.popen("./build/matvec 1 1024 " + str(n)).read()[:-2]))
-        max_times.append(max(times))
-        min_times.append(min(times))
-        avg_times.append(sum(times)/len(times))
-        f.write(str(numRowParts) + ";" + str(min_times[-1]) + ";" + str(max_times[-1]) + ";" + str(avg_times[-1]) + "\n")
+def benchmark_method_v1():
+    times = []
+    for i in range(repeat_count):
+        return_string = os.popen("./build/matvec 1 " + str(dim) + " --profile").read()
+        time = int(return_string.split(' ')[2])
+        times.append(time)
+    return times
 
-plt.plot(numRowParts, max_times, label="max_times", marker='o')
-plt.plot(numRowParts, min_times, label="min_times", marker='o')
-plt.plot(numRowParts, avg_times, label="avg_times", marker='o')
-plt.xlabel('numRowParts')
-plt.ylabel('time [us]')
-plt.xticks(ticks=numRowParts)
-#plt.xscale('log')
-#plt.yscale('log')
-plt.legend()
-plt.savefig(sys.argv[1] + '.png')
+def measure_v1(dim):
+    return_string = os.popen("./build/matvec 1 " + str(dim) + " --profile").read()
+    time = int(return_string.split(' ')[2])
+    return time
+
+def find_fastest_param_for_v2(dim):
+    rowBlockSizes = [2**n for n in range(1, 7)]
+    times = []
+    min_params = 0
+    min_time = 0
+
+    for rowBlockSize in rowBlockSizes:
+        return_string = os.popen("./build/matvec 2 " + str(dim) + " " + str(rowBlockSize) + " --profile").read()
+        time = int(return_string.split(' ')[2])
+        times.append(time)
+        if min_time == 0 or min_time > time:
+            min_time = time
+            min_params = rowBlockSize
+    return min_time, min_params
+
+def find_fastest_param_for_v3(dim):
+    rowBlockSizes = [2**n for n in range(1, 7)]
+    colBlockSizes = [2**n for n in range(1, 7)]
+    times = []
+    min_params = 0
+    min_time = 0
+
+    for rowBlockSize in rowBlockSizes:
+        for colBlockSize in colBlockSizes:
+            if rowBlockSize*colBlockSize < 256:
+                return_string = os.popen("./build/matvec 3 " + str(dim) + " " + str(rowBlockSize) + " " + str(colBlockSize) + " --profile").read()
+                time = int(return_string.split(' ')[2])
+                times.append(time)
+                if min_time == 0 or min_time > time:
+                    min_time = time
+                    min_params = [rowBlockSize, colBlockSize]
+        return min_time, min_params
+
+print("v1:")
+print(measure_v1(dim))
+
+print("v2:")
+print(find_fastest_param_for_v2(dim))
+
+print("v3:")
+print(find_fastest_param_for_v3(dim))
