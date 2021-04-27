@@ -22,8 +22,8 @@ void Application::run_v1(std::vector<std::string>& args)
     cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true);
 
     auto globalSize       = cl::NDRange{dim};
-    auto localSize        = cl::NDRange{1};
-    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, localSize);
+    auto groupSize        = cl::NDRange{1};
+    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, groupSize);
 
     auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer>(program, "matvec_v1");
     cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut));
@@ -42,13 +42,13 @@ void Application::run_v2(std::vector<std::string>& args)
     initializeOpenCL(context, device, queue, program);
 
     if(args.size() < 4)
-        throw std::invalid_argument("Method 2 requires 3 arguments: {method} {dimension} {rowBlockSize}");
+        throw std::invalid_argument("Method 2 requires 3 arguments: {method} {dimension} {numItemsInGroupRow}");
 
     size_t dim = atoi(args[2].c_str());
-    size_t rowBlockSize = atoi(args[3].c_str());
+    size_t numItemsInGroupRow = atoi(args[3].c_str());
 
-    if(rowBlockSize > dim || dim <= 0 || rowBlockSize <= 0 || dim % rowBlockSize != 0)
-        throw std::invalid_argument("Invalid dimension or rowBlockSize given to method 2. dim: " + std::to_string(dim) + ", rowBlockSize: " + std::to_string(rowBlockSize));
+    if(numItemsInGroupRow > dim || dim <= 0 || numItemsInGroupRow <= 0 || dim % numItemsInGroupRow != 0)
+        throw std::invalid_argument("Invalid dimension or numItemsInGroupRow given to method 2. dim: " + std::to_string(dim) + ", numItemsInGroupRow: " + std::to_string(numItemsInGroupRow));
 
     Matrix mat(dim);
     initializeVectors(dim);
@@ -57,14 +57,14 @@ void Application::run_v2(std::vector<std::string>& args)
     cl::Buffer bufferIn (context, inVector.begin(),    inVector.end(),    true  /* readOnly */);
     cl::Buffer bufferOut(context, outVector.begin(),   outVector.end(),   false /* readOnly */);
     cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true);
-    auto workArray = cl::Local((rowBlockSize+1)*sizeof(float));
+    auto work = cl::Local((numItemsInGroupRow+1)*sizeof(float));
 
-    auto globalSize       = cl::NDRange{dim*rowBlockSize};
-    auto localSize        = cl::NDRange{rowBlockSize};
-    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, localSize);
+    auto globalSize       = cl::NDRange{dim*numItemsInGroupRow};
+    auto groupSize        = cl::NDRange{numItemsInGroupRow};
+    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, groupSize);
 
     auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v2");
-    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, workArray));
+    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, work));
     kernel_event.wait();
 
     if(printProfileInfo)
@@ -80,16 +80,16 @@ void Application::run_v3(std::vector<std::string>& args)
     initializeOpenCL(context, device, queue, program);
 
     if(args.size() < 5)
-        throw std::invalid_argument("Method 3 requires 3 arguments: {method} {dimension} {rowBlockSize} {columnBlockSize}");
+        throw std::invalid_argument("Method 3 requires 3 arguments: {method} {dimension} {numItemsInGroupRow} {numItemsInGroupColumn}");
 
     size_t dim = atoi(args[2].c_str());
-    size_t rowBlockSize = atoi(args[3].c_str());    // number of rows to calculate in a work-group
-    size_t columnBlockSize = atoi(args[4].c_str()); // number of work-items that calculate a row
+    size_t numItemsInGroupRow = atoi(args[3].c_str());    // number of rows to calculate in a work-group
+    size_t numItemsInGroupColumn = atoi(args[4].c_str()); // number of work-items that calculate a row
 
-    if(dim <= 0 || rowBlockSize > dim || rowBlockSize <= 0 || dim % rowBlockSize != 0 
-    || columnBlockSize > dim || columnBlockSize <= 0 || dim % columnBlockSize != 0)
-        throw std::invalid_argument("Invalid dimension, rowBlockSize or columnBlockSIze given to method 3. "
-        "dim: " + std::to_string(dim) + ", rowBlockSize: " + std::to_string(rowBlockSize) + ", columnBlockSIze: " + std::to_string(columnBlockSize));
+    if(dim <= 0 || numItemsInGroupRow > dim || numItemsInGroupRow <= 0 || dim % numItemsInGroupRow != 0 
+    || numItemsInGroupColumn > dim || numItemsInGroupColumn <= 0 || dim % numItemsInGroupColumn != 0)
+        throw std::invalid_argument("Invalid dimension, numItemsInGroupRow or columnBlockSIze given to method 3. "
+        "dim: " + std::to_string(dim) + ", numItemsInGroupRow: " + std::to_string(numItemsInGroupRow) + ", columnBlockSIze: " + std::to_string(numItemsInGroupColumn));
 
     Matrix mat(dim);
     initializeVectors(dim);
@@ -98,14 +98,14 @@ void Application::run_v3(std::vector<std::string>& args)
     cl::Buffer bufferIn (context, inVector.begin(),    inVector.end(),    true );
     cl::Buffer bufferOut(context, outVector.begin(),   outVector.end(),   false);
     cl::Buffer bufferMat(context, matElements.begin(), matElements.end(), true );
-    auto workArray = cl::Local(rowBlockSize * columnBlockSize * sizeof(float));
+    auto work = cl::Local(numItemsInGroupRow * numItemsInGroupColumn * sizeof(float));
 
-    auto globalSize       = cl::NDRange(dim, columnBlockSize);
-    auto localSize        = cl::NDRange(rowBlockSize, columnBlockSize);
-    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, localSize);
+    auto globalSize       = cl::NDRange(dim, numItemsInGroupColumn);
+    auto groupSize        = cl::NDRange(numItemsInGroupRow, numItemsInGroupColumn);
+    auto kernelParameters = cl::EnqueueArgs(queue, globalSize, groupSize);
 
     auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v3");
-    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, workArray));
+    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, work));
     kernel_event.wait();
 
     if(printProfileInfo)
@@ -117,7 +117,7 @@ void Application::run_v3(std::vector<std::string>& args)
 
 bool Application::matchOutAndReferenceVectors() const
 {
-    static const float tolerance = 1e-2;
+    static const float tolerance = 1e-4;
     for (size_t i = 0; i < outVector.size(); i++)
     {
         const auto error = abs(outVector[i] - referenceVector[i]);
