@@ -31,6 +31,9 @@ int main(int argc, char* args[])
             case 3:
                 app.run_v3(argsVector);
                 break;
+            case 4:
+                app.run_v4(argsVector);
+                break;
             default: throw std::invalid_argument("Unknown method!");
         }
         app.matchOutAndReferenceVectors();

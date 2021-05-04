@@ -13,7 +13,8 @@ class Matrix
             auto prng = [engine = std::default_random_engine{},
                         distribution = std::uniform_real_distribution<cl_float>{ -1.0, 1.0 }]() mutable { return distribution(engine); };
 
-            std::generate_n(m_elements.begin(), m_elements.size(), prng);
+            //std::generate_n(m_elements.begin(), m_elements.size(), prng);
+            initializeAsIdentity(size);
         }
 
         void actsOnVector(const std::vector<cl_float>& inVector, std::vector<cl_float>& outVector)

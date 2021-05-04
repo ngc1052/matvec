@@ -14,6 +14,7 @@ public:
     void run_v1(std::vector<std::string>& args);
     void run_v2(std::vector<std::string>& args);
     void run_v3(std::vector<std::string>& args);
+    void run_v4(std::vector<std::string>& args);
 
     bool matchOutAndReferenceVectors() const;
 
