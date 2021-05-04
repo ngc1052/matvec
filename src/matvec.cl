@@ -155,12 +155,12 @@ kernel void matvec_v4(global const float* matrix,
     // Calculating the dot product for a part of the rows
     global const float* shiftedMatrix  = matrix + matrixRow * size + firstColumn;
     extendedOutVector[matrixRow*globalSize[COL] + groupID[COL]] = dotProductFromLocal(shiftedMatrix, work, elementsPerItem);
+}
 
-    // Naive reduction
-    if(groupID[COL] == globalSize[COL]-1)
-    {
-        const int sumIndex = matrixRow * globalSize[COL];
-        for(int column = 1; column < globalSize[COL]; column++)
-            extendedOutVector[sumIndex] += extendedOutVector[sumIndex + column];
-    }
+kernel void reduceRows(global float* extendedOutVector, const int columns)
+{
+    //Naive reudction
+    const int sumIndex = get_global_id(ROW) * columns;
+    for(int column = 1; column < columns; column++)
+        extendedOutVector[sumIndex] += extendedOutVector[sumIndex + column];
 }

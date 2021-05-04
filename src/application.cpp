@@ -144,19 +144,27 @@ void Application::run_v4(std::vector<std::string>& args)
     cl::Buffer bufferMat(context, matElements.begin(),         matElements.end(),       true);
 
     const auto elementsPerItem = dim / numGroupsInMatrixRow;
-
     auto work = cl::Local(elementsPerItem * sizeof(float));
 
-    const auto globalSize       = cl::NDRange(dim, numGroupsInMatrixRow);
+    auto       globalSize       = cl::NDRange(dim, numGroupsInMatrixRow);
     const auto groupSize        = cl::NDRange(numItemsInGroupColumn, 1);
-    const auto kernelParameters = cl::EnqueueArgs(queue, globalSize, groupSize);
+    const auto computeKernelParameters = cl::EnqueueArgs(queue, globalSize, groupSize);
+    auto computeKernel = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v4");
+    cl::Event computeEvent(computeKernel(computeKernelParameters, bufferMat, dim, bufferIn, bufferOut, work));
+    computeEvent.wait();
 
-    auto kernelEntry = cl::KernelFunctor<cl::Buffer, cl_int, cl::Buffer, cl::Buffer, cl::LocalSpaceArg>(program, "matvec_v4");
-    cl::Event kernel_event(kernelEntry(kernelParameters, bufferMat, dim, bufferIn, bufferOut, work));
-    kernel_event.wait();
+    globalSize = cl::NDRange(dim);
+    const auto reduceKernelParameters = cl::EnqueueArgs(queue, globalSize);
+    auto reduceKernel = cl::KernelFunctor<cl::Buffer, cl_int>(program, "reduceRows");
+    cl::Event reduceEvent(reduceKernel(reduceKernelParameters, bufferOut, numGroupsInMatrixRow));
+    reduceEvent.wait();
 
     if(printProfileInfo)
-        std::cout << "Execution took: " << get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(kernel_event).count() << " us" << std::endl;
+    {            
+        auto duration1 = get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(computeEvent).count();
+        auto duration2 = get_duration<CL_PROFILING_COMMAND_START, CL_PROFILING_COMMAND_END, std::chrono::microseconds>(reduceEvent).count();
+        std::cout << "Execution took: " << duration1 + duration2 << " us" << std::endl;
+    }
 
     cl::copy(queue, bufferOut, extendedOutVector.begin(), extendedOutVector.end());
     for(size_t i = 0; i < extendedOutVector.size(); i += numGroupsInMatrixRow)
