@@ -7,7 +7,7 @@
 #include <cmath>
 #include <iostream>
 
-void Application::run_v1(std::vector<std::string>& args)
+void Application::run_v1(const std::vector<std::string>& args)
 {
     initializeOpenCL(context, device, queue, program);
 
@@ -37,7 +37,7 @@ void Application::run_v1(std::vector<std::string>& args)
     mat.actsOnVector(inVector, referenceVector);
 }
 
-void Application::run_v2(std::vector<std::string>& args)
+void Application::run_v2(const std::vector<std::string>& args)
 {
     initializeOpenCL(context, device, queue, program);
 
@@ -75,7 +75,7 @@ void Application::run_v2(std::vector<std::string>& args)
     mat.actsOnVector(inVector, referenceVector);
 }
 
-void Application::run_v3(std::vector<std::string>& args)
+void Application::run_v3(const std::vector<std::string>& args)
 {
     initializeOpenCL(context, device, queue, program);
 
@@ -115,7 +115,7 @@ void Application::run_v3(std::vector<std::string>& args)
     mat.actsOnVector(inVector, referenceVector);
 }
 
-void Application::run_v4(std::vector<std::string>& args)
+void Application::run_v4(const std::vector<std::string>& args)
 {
     initializeOpenCL(context, device, queue, program);
 

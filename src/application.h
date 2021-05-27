@@ -11,16 +11,12 @@ class Application
 public:
     Application(bool printProfileInfo = false) : printProfileInfo(printProfileInfo) {}
 
-    void run_v1(std::vector<std::string>& args);
-    void run_v2(std::vector<std::string>& args);
-    void run_v3(std::vector<std::string>& args);
-    void run_v4(std::vector<std::string>& args);
+    void run_v1(const std::vector<std::string>& args);
+    void run_v2(const std::vector<std::string>& args);
+    void run_v3(const std::vector<std::string>& args);
+    void run_v4(const std::vector<std::string>& args);
 
     bool matchOutAndReferenceVectors() const;
-
-    std::vector<cl_float>& getInVector()        { return inVector;        }
-    std::vector<cl_float>& getOutVector()       { return outVector;       }
-    std::vector<cl_float>& getReferenceVector() { return referenceVector; }
 
     private:
         void initializeVectors(const size_t dim);

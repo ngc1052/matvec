@@ -18,6 +18,9 @@ float dotProductFromLocal(const global float* vec1, const local float* vec2, con
 }
 
 // One work-item per matrixRow, one work-group in total
+/*
+Problem: Each element of inVector is read at every row, and it is stored in the global memory.
+*/
 kernel void matvec_v1(global const float* matrix,                                    
                              const int    size,
                       global const float* inVector,
@@ -38,6 +41,11 @@ kernel void matvec_v1(global const float* matrix,
 |              | 
 \              / 
 
+Here we introduce the work array that is stored in the local memory. Each item
+calculates its own part of the dot product and stores the result in the work
+array. After synchronization, the elements of the work array need to be summed.
+This is done by choosing a single item, this is slow as it could be
+paralellized.
 */
 kernel void matvec_v2(global const float* matrix, 
                              const int    size,
@@ -77,7 +85,9 @@ kernel void matvec_v2(global const float* matrix,
 |  |  |  |  |  | 
 |--------------| 
 \              / 
-
+We now use a 2D computational grid. The principle is the same as before, but
+here we extend the scope of a work-group, therefore, the work array is now two
+dimensional. Its elements in a row are still summed up by a single item.
 */
 kernel void matvec_v3(global const float* matrix, 
                              const int    size,
@@ -124,7 +134,14 @@ kernel void matvec_v3(global const float* matrix,
 |      ----    | 
 |              | 
 \              / 
-
+Here we avoid reading the same data from global memory multiple times. From now
+on, the work array is not used to store partial dot products, but to store the
+relevant part of inVector that is read multiple times. The dot products are
+therefore calculated by reading the vector from local memory. Given its limited
+size, work-group now cannot compute full rows of the matrix, they have to be
+restrictied. Partial results are stored in the global memory, and a separate
+kernel is called to reduce its rows. Further optimization is now done by
+refining the reduction algorithm.
 */
 kernel void matvec_v4(global const float* matrix, 
                              const int    size,
@@ -146,12 +163,14 @@ kernel void matvec_v4(global const float* matrix,
 
     // Copying part of inVector into local memory
     const int readByOneItem = elementsPerItem / groupSize[ROW];
-    for(int workIndex = localID*readByOneItem; workIndex < localID*readByOneItem + readByOneItem; workIndex++)
+    const int startIndex = readByOneItem * localID;
+    for(int workIndex = startIndex; workIndex < startIndex + readByOneItem; workIndex++)
     {
         const int vectorIndex = workIndex + firstColumn;
         work[workIndex] = inVector[vectorIndex];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
+
     // Calculating the dot product for a part of the rows
     global const float* shiftedMatrix  = matrix + matrixRow * size + firstColumn;
     extendedOutVector[matrixRow*globalSize[COL] + groupID[COL]] = dotProductFromLocal(shiftedMatrix, work, elementsPerItem);
