@@ -151,8 +151,8 @@ kernel void matvec_v4(global const float* matrix,
 {
 
     // Initializing auxiliary variables
-    const int2 groupSize        = (int2)(get_local_size (ROW),  get_local_size (COL));
-    const int2 globalSize       = (int2)(get_global_size(ROW),  get_global_size(COL));
+    const int2 groupSize        = (int2)(get_local_size (ROW), get_local_size (COL));
+    const int2 globalSize       = (int2)(get_global_size(ROW), get_global_size(COL));
     const int  localID          = get_local_id(ROW);
 
     const int2 groupID          = (int2)(get_group_id(ROW), get_group_id(COL));

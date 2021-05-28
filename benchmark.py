@@ -10,11 +10,17 @@ def measure_time(version, dim, arg1 = None, arg2 = None):
     time = int(return_string.split(' ')[2])
     return time
 
+def benchmark_cpu_version():
+    times = []
+    for i in range(repeat_count):
+        times.append(measure_time(0, dim))
+    return min(times)
+
 def benchmark_method_v1():
     times = []
     for i in range(repeat_count):
         times.append(measure_time(1, dim))
-    return times
+    return min(times)
 
 def find_fastest_param_for_v2():
     numItemsInGroupRow = [2**n for n in range(1, 7)]
@@ -62,14 +68,22 @@ def find_fastest_param_for_v4():
                 if min_time == 0 or min_time > time:
                     min_time = time
                     min_params = [p1, p2]
-        return min_time, min_params, times
+        return min_time, min_params#, times
 
-#print(measure_time(1, dim))
+print("Times are measured in microseconds.")
+print(f"Dimension: {dim}\n")
+
+print("CPU version: ")
+print(benchmark_cpu_version())
+
+print("\nv1:")
+print(benchmark_method_v1())
+
+print("\nv2 (time, parameter):")
+print(find_fastest_param_for_v2())
+
+print("\nv3 (time, parameters):")
 print(find_fastest_param_for_v3())
-print(find_fastest_param_for_v4())
 
-#print("v2:")
-#print(find_fastest_param_for_v2(dim))
-#
-#print("v3:")
-#print(find_fastest_param_for_v3(dim))
+print("\nv4 (time, parameters):")
+print(find_fastest_param_for_v4())

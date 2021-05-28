@@ -16,6 +16,8 @@ public:
     void run_v3(const std::vector<std::string>& args);
     void run_v4(const std::vector<std::string>& args);
 
+    void runCPUVersion(const std::vector<std::string>& args);
+
     bool matchOutAndReferenceVectors() const;
 
     private:

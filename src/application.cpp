@@ -197,3 +197,21 @@ void Application::initializeVectors(const size_t dim)
     std::generate_n(inVector.begin(), inVector.size(), prng);
     //std::fill(inVector.begin(), inVector.end(), 1.0);
 }
+
+void Application::runCPUVersion(const std::vector<std::string>& args)
+{
+    const size_t dim = atoi(args[2].c_str());
+
+    Matrix mat(dim);
+    initializeVectors(dim);
+
+	auto tStart = std::chrono::high_resolution_clock::now();
+    mat.actsOnVector(inVector, outVector);
+	auto tEnd = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
+
+    if(printProfileInfo)
+        std::cout << "Execution took: " << duration << " us" << std::endl;
+
+    std::copy(outVector.cbegin(), outVector.cend(), referenceVector.begin());
+}

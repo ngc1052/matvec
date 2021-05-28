@@ -22,6 +22,9 @@ int main(int argc, char* args[])
         Application app(printProfileInfo);
         switch(choice)
         {
+            case 0:
+                app.runCPUVersion(argsVector);
+                break;
             case 1:
                 app.run_v1(argsVector);
                 break;
